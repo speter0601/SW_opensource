@@ -1,0 +1,42 @@
+name: Docker Build and Push CI/CD
+
+on:
+  push:
+    branches:
+      - main  # Trigger on push to the main branch
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout the repository code
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      # 2. Login to Docker Hub using GitHub Secrets
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # 3. Setup Docker Buildx (required for advanced layer caching & multi-platform logic)
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      # 4. Build the image and push to your Docker Hub repository
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./wifi_mlops
+          dockerfile: ./wifi_mlops/Dockerfile
+          push: true
+          # Maps to your username and the image name
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/wifi-mlops:latest
+          # Use internal GitHub cache to speed up subsequent builds
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

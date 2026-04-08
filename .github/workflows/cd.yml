@@ -1,0 +1,42 @@
+name: Continuous Deployment
+
+on:
+  workflow_run:
+    workflows: ["Docker Build and Push CI/CD"] # Name of your CI workflow
+    types:
+      - completed
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Pull the latest Docker Image
+        run: |
+          docker pull ${{ secrets.DOCKERHUB_USERNAME }}/wifi-mlops:latest
+
+      - name: Stop and Remove Existing Container
+        run: |
+          docker stop wifi-mlops-app || true
+          docker rm wifi-mlops-app || true
+
+      - name: Run the New Container
+        run: |
+          docker run -d \
+            --name wifi-mlops-app \
+            -p 8000:8000 \
+            --restart unless-stopped \
+            --platform linux/amd64 \
+            ${{ secrets.DOCKERHUB_USERNAME }}/wifi-mlops:latest
